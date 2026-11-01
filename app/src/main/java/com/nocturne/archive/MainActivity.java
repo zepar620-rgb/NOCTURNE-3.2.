@@ -55,6 +55,9 @@ public class MainActivity extends Activity {
     private WebChromeClient.CustomViewCallback fullscreenCallback;
     private int originalSystemUiVisibility;
     private Window fullscreenWindow;
+    private LinearLayout playerScreen;
+    private WebView playerWebView;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -367,51 +370,77 @@ public class MainActivity extends Activity {
     }
 
     private void showExternalPlayerWindow(android.os.Message resultMsg) {
+        closeExternalPlayerWindow();
+
         WebView popup = new WebView(this);
         configureWebView(popup, false);
+        playerWebView = popup;
 
-        LinearLayout shell = new LinearLayout(this);
-        shell.setOrientation(LinearLayout.VERTICAL);
-        shell.setBackgroundColor(Color.rgb(16, 10, 17));
+        LinearLayout screen = new LinearLayout(this);
+        screen.setOrientation(LinearLayout.VERTICAL);
+        screen.setBackgroundColor(Color.rgb(16, 10, 17));
+        playerScreen = screen;
 
         LinearLayout toolbar = new LinearLayout(this);
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
-        toolbar.setPadding(dp(12), dp(6), dp(12), dp(6));
+        toolbar.setPadding(dp(10), dp(6), dp(10), dp(6));
         toolbar.setBackgroundColor(Color.rgb(31, 19, 29));
+
+        Button back = new Button(this);
+        back.setText("‹ KEMBALI");
+        toolbar.addView(back, new LinearLayout.LayoutParams(dp(112), dp(46)));
+
         TextView label = new TextView(this);
-        label.setText("✠  EXTERNAL PLAYER");
+        label.setText("✠  NOCTURNE PLAYER");
         label.setTextColor(Color.rgb(226, 202, 215));
         label.setTextSize(12);
-        toolbar.addView(label, new LinearLayout.LayoutParams(0, dp(44), 1));
-        Button close = new Button(this);
-        close.setText("TUTUP");
-        toolbar.addView(close, new LinearLayout.LayoutParams(dp(92), dp(44)));
-        shell.addView(toolbar);
-        shell.addView(popup, new LinearLayout.LayoutParams(-1, 0, 1));
+        label.setGravity(Gravity.CENTER);
+        toolbar.addView(label, new LinearLayout.LayoutParams(0, dp(46), 1));
 
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setView(shell)
-                .create();
-        close.setOnClickListener(v -> dialog.dismiss());
-        dialog.setOnDismissListener(d -> {
-            popup.stopLoading();
-            popup.destroy();
+        Button reload = new Button(this);
+        reload.setText("MUAT ULANG");
+        toolbar.addView(reload, new LinearLayout.LayoutParams(dp(112), dp(46)));
+
+        screen.addView(toolbar, new LinearLayout.LayoutParams(-1, dp(58)));
+        screen.addView(popup, new LinearLayout.LayoutParams(-1, 0, 1));
+
+        back.setOnClickListener(v -> closeExternalPlayerWindow());
+        reload.setOnClickListener(v -> {
+            if (playerWebView != null) playerWebView.reload();
         });
-        dialog.show();
-        Window window = dialog.getWindow();
-        if (window != null) {
-            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT,
-                    (int) (getResources().getDisplayMetrics().heightPixels * 0.88));
-            window.setBackgroundDrawableResource(android.R.color.transparent);
-            popup.setWebChromeClient(new NocturneChromeClient(window));
-        }
 
-        WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
+        popup.setWebChromeClient(new NocturneChromeClient(getWindow()));
+        popup.setWebViewClient(new WebViewClient());
+
+        webView.setVisibility(View.GONE);
+        root.addView(screen, new FrameLayout.LayoutParams(-1, -1));
+
+        WebView.WebViewTransport transport =
+                (WebView.WebViewTransport) resultMsg.obj;
         transport.setWebView(popup);
         resultMsg.sendToTarget();
     }
 
-    @Override
+    private void closeExternalPlayerWindow() {
+        if (playerScreen == null) return;
+
+        WebView oldPlayer = playerWebView;
+        LinearLayout oldScreen = playerScreen;
+        playerWebView = null;
+        playerScreen = null;
+
+        if (root != null) root.removeView(oldScreen);
+
+        if (oldPlayer != null) {
+            oldPlayer.stopLoading();
+            oldPlayer.setWebChromeClient(null);
+            oldPlayer.setWebViewClient(null);
+            oldPlayer.destroy();
+        }
+
+        if (webView != null) webView.setVisibility(View.VISIBLE);
+    }
+
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == FILE_CHOOSER_REQUEST && filePathCallback != null) {
@@ -431,6 +460,14 @@ public class MainActivity extends Activity {
             new NocturneChromeClient(fullscreenWindow == null ? getWindow() : fullscreenWindow).onHideCustomView();
             return;
         }
+        if (playerWebView != null) {
+            if (playerWebView.canGoBack()) {
+                playerWebView.goBack();
+            } else {
+                closeExternalPlayerWindow();
+            }
+            return;
+        }
         if (webView != null && webView.canGoBack()) {
             webView.goBack();
         } else {
@@ -438,7 +475,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    @Override
     protected void onDestroy() {
         if (startupExecutor != null) startupExecutor.shutdownNow();
         if (webView != null) {
