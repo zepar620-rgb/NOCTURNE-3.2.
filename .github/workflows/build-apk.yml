@@ -3,6 +3,8 @@ name: Build NOCTURNE Android APK
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
@@ -15,6 +17,7 @@ env:
 jobs:
   build-debug-apk:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -25,7 +28,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Python 3.13 for Chaquopy
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -41,7 +44,7 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Build debug APK
+      - name: Build NOCTURNE APK
         run: gradle --no-daemon --stacktrace assembleDebug
 
       - name: Upload APK artifact
