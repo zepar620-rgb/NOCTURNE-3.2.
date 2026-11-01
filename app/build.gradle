@@ -16,7 +16,7 @@ android {
 
         // Current Android phones and common x86_64 emulators.
         ndk {
-            abiFilters 'arm64-v8a', 'x86_64'
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
         }
     }
 
@@ -45,7 +45,7 @@ android {
 
 chaquopy {
     defaultConfig {
-        version = '3.13'
+        version = '3.11'
         pip {
             install 'Flask==3.1.2'
             install 'requests==2.32.5'
